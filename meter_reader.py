@@ -1,32 +1,47 @@
 #!/usr/bin/env python
 
+# Reads data via optical interface from EasyMeter Q3D
+# connected to serial Port
+# Publishes the Data to an MQTT Server
+
 from __future__ import division
 
 from pprint import pprint
 import paho.mqtt.client as mqtt
 import serial
 
+# settings
+
+MQTT_server = '192.168.10.2'
+MQTT_protocol = 3
+serialport = '/dev/ttyAMA0'
+
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
-
+	# Publis units of measurements
+    client.publish('kwh_consumption/unit', payload='kWh', qos=1, retain=True)
+	client.publish('kwh_delivered/unit', payload='kWh', qos=1, retain=True)
+	client.publish('kwh_absolute/unit', payload='kWh', qos=1, retain=True)
+	client.publish('power_l1/unit', payload='W', qos=1, retain=True)
+	client.publish('power_l2/unit', payload='W', qos=1, retain=True)
+	client.publish('power_l3/unit', payload='W', qos=1, retain=True)
+	client.publish('power_sum/unit', payload='W', qos=1, retain=True)
+	
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
     print(msg.topic+" "+str(msg.payload))
 
-client = mqtt.Client(protocol=3)
+client = mqtt.Client(protocol = MQTT_protocol)
 client.on_connect = on_connect
 client.on_message = on_message
 
-client.connect("192.168.10.2", 1883, 60, )
+client.connect(MQTT_server, 1883, 60, )
 
-# Blocking call that processes network traffic, dispatches callbacks and
-# handles reconnecting.
-# Other loop*() functions are available that give a threaded interface and a
-# manual interface.
+# Run the MQTT loop
 client.loop_start()
 
-ser = serial.Serial('/dev/ttyAMA0', 9600, parity=serial.PARITY_EVEN, bytesize=7)
+ser = serial.Serial(serialport, 9600, parity=serial.PARITY_EVEN, bytesize=7)
 
 start = False
 while True:
@@ -52,53 +67,53 @@ while True:
         if lineparts[0] == "1-0:0.0.0*255":
             sdata['owner_id'] = lineparts[1].rstrip(")")
         elif lineparts[0] == "1-0:1.8.0*255":
-            data['kwh_consumption'] = float(lineparts[1].rstrip(")").split("*")[0])
+            data['kwh_consumption/value'] = float(lineparts[1].rstrip(")").split("*")[0])
         elif lineparts[0] == "1-0:2.8.0*255":
-            data['kwh_delivered'] = float(lineparts[1].rstrip(")").split("*")[0])
+            data['kwh_delivered/value'] = float(lineparts[1].rstrip(")").split("*")[0])
         elif lineparts[0] == "1-0:15.8.0*255":
-            data['kwh_absolute'] = float(lineparts[1].rstrip(")").split("*")[0])
+            data['kwh_absolute/value'] = float(lineparts[1].rstrip(")").split("*")[0])
         elif lineparts[0] == "1-0:21.7.0*255":
-            data['power_l1'] = float(lineparts[1].rstrip(")").split("*")[0])
+            data['power_l1/value'] = float(lineparts[1].rstrip(")").split("*")[0])
         elif lineparts[0] == "1-0:41.7.0*255":
-            data['power_l2'] = float(lineparts[1].rstrip(")").split("*")[0])
+            data['power_l2/value'] = float(lineparts[1].rstrip(")").split("*")[0])
         elif lineparts[0] == "1-0:61.7.0*255":
-            data['power_l3'] = float(lineparts[1].rstrip(")").split("*")[0])
+            data['power_l3/value'] = float(lineparts[1].rstrip(")").split("*")[0])
         elif lineparts[0] == "1-0:1.7.0*255":
-            data['power_sum'] = float(lineparts[1].rstrip(")").split("*")[0])
+            data['power_sum/value'] = float(lineparts[1].rstrip(")").split("*")[0])
         elif lineparts[0] == "1-0:96.5.5*255":
-            """ dont care for now
             flag = int(lineparts[1].rstrip(")"))
-            if flag & 2 ^^ 0 == True:
-                data['flag_error'] == 1
+			# Not sure about this, but reversed bits seem to fit
+            if flag & 2 ^^ 7 == True:
+                data['flag/error'] == 1
             else:
-                data['flag_error'] == 0
+                data['flag/error'] == 0
+
+            if flag & 2 ^^ 6 == True:
+                data['flag/sync'] == 1
+            else:
+                data['flag/sync'] == 0
+
+            if flag & 2 ^^ 3 == True:
+                data['flag/l1_0V'] == 1
+            else:
+                data['flag/l1_0V'] == 0
+
+            if flag & 2 ^^ 2 == True:
+                data['flag/l2_0V'] == 1
+            else:
+                data['flag/l2_0V'] == 0
 
             if flag & 2 ^^ 1 == True:
-                data['flag_sync'] == 1
+                data['flag/l3_0V'] == 1
             else:
-                data['flag_error'] == 0
+                data['flag/l3_0V'] == 0
 
-            if flag & 2 ^^ 4 == True:
-                data['flag_l1_0V'] == 1
+            if flag & 2 ^^ 0 == True:
+                data['flag/empty'] == 1
             else:
-                data['flag_error'] == 0
+                data['flag/empty'] == 0
 
-            if flag & 2 ^^ 5 == True:
-                data['flag_l2_0V'] == 1
-            else:
-                data['flag_error'] == 0
-
-            if flag & 2 ^^ 6 == True:
-                data['flag_l3_0V'] == 1
-            else:
-                data['flag_error'] == 0
-
-            if flag & 2 ^^ 6 == True:
-                data['flag_empty'] == 1
-            else:
-                data['flag_error'] == 0
-            """
-            data['flag'] = int(lineparts[1].rstrip(")"))
+            data['flag/raw'] = flag
         elif lineparts[0] == "0-0:96.1.255*255":
             sdata['factory_number'] = lineparts[1].rstrip(")")
 
