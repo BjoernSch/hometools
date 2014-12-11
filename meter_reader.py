@@ -2,15 +2,13 @@
 
 # Reads data via optical interface from EasyMeter Q3D
 # connected to serial Port
-# Publishes the Data to an MQTT Server
+# Publishes Data to an MQTT Server
 
 from __future__ import division
 
 from pprint import pprint
 import paho.mqtt.client as mqtt
 import serial
-
-# settings
 
 MQTT_server = '192.168.10.2'
 MQTT_protocol = 3
@@ -84,36 +82,35 @@ while True:
             flag = int(lineparts[1].rstrip(")"))
 			# Not sure about this, but reversed bits seem to fit
             if flag & 2 ^^ 7 == True:
-                data['flag/error'] == 1
+                data['flag/error'] == 'true'
             else:
-                data['flag/error'] == 0
+                data['flag/error'] == 'false'
 
             if flag & 2 ^^ 6 == True:
-                data['flag/sync'] == 1
+                data['flag/sync'] == 'true'
             else:
-                data['flag/sync'] == 0
+                data['flag/sync'] == 'false'
 
             if flag & 2 ^^ 3 == True:
-                data['flag/l1_0V'] == 1
+                data['flag/l1_0V'] == 'true'
             else:
-                data['flag/l1_0V'] == 0
+                data['flag/l1_0V'] == 'false'
 
             if flag & 2 ^^ 2 == True:
-                data['flag/l2_0V'] == 1
+                data['flag/l2_0V'] == 'true'
             else:
-                data['flag/l2_0V'] == 0
+                data['flag/l2_0V'] == 'false'
 
             if flag & 2 ^^ 1 == True:
-                data['flag/l3_0V'] == 1
+                data['flag/l3_0V'] == 'true'
             else:
-                data['flag/l3_0V'] == 0
+                data['flag/l3_0V'] == 'false'
 
             if flag & 2 ^^ 0 == True:
-                data['flag/empty'] == 1
+                data['flag/empty'] == 'true'
             else:
-                data['flag/empty'] == 0
+                data['flag/empty'] == 'false'
 
             data['flag/raw'] = flag
         elif lineparts[0] == "0-0:96.1.255*255":
             sdata['factory_number'] = lineparts[1].rstrip(")")
-
